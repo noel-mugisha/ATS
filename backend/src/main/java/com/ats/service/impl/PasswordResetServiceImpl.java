@@ -31,32 +31,38 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     @Override
     @Transactional
     public boolean processForgotPasswordRequest(ForgotPasswordRequest request) {
+        return processForgotPasswordRequest(request, null);
+    }
+
+    @Override
+    @Transactional
+    public boolean processForgotPasswordRequest(ForgotPasswordRequest request, String requestOrigin) {
         // Get user by email
         Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
-        
+
         // If user doesn't exist, return true (for security reasons, don't reveal if email exists)
         if (userOptional.isEmpty()) {
             log.info("Forgot password request for non-existent email: {}", request.getEmail());
             return true;
         }
-        
+
         User user = userOptional.get();
-        
+
         // If user signed up with LinkedIn and doesn't have password enabled yet, we'll enable it
         if (user.getIsEmailPasswordEnabled() == null || !user.getIsEmailPasswordEnabled()) {
             log.info("Enabling email/password auth for LinkedIn user: {}", user.getEmail());
             user.setIsEmailPasswordEnabled(true);
             user = userRepository.save(user);
         }
-        
+
         // Create token
         PasswordResetToken resetToken = TokenUtil.createPasswordResetToken(user);
         resetToken = tokenRepository.save(resetToken);
-        
+
         // Send email
         try {
-            emailService.sendPasswordResetEmail(user.getEmail(), resetToken.getToken(), user);
-            log.info("Password reset email sent to: {}", user.getEmail());
+            emailService.sendPasswordResetEmail(user.getEmail(), resetToken.getToken(), user, requestOrigin);
+            log.info("Password reset email sent to: {} using origin: {}", user.getEmail(), requestOrigin);
             return true;
         } catch (MessagingException e) {
             log.error("Failed to send password reset email to: {}", user.getEmail(), e);

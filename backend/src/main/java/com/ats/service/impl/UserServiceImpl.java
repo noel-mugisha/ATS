@@ -49,6 +49,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDTO createUser(UserDTO userDTO) {
+        return createUser(userDTO, null);
+    }
+
+    @Override
+    @Transactional
+    public UserDTO createUser(UserDTO userDTO, String requestOrigin) {
         if (userRepository.existsByEmail(userDTO.getEmail())) {
             throw new ResourceAlreadyExistsException("Email already exists");
         }
@@ -105,7 +111,7 @@ public class UserServiceImpl implements UserService {
             if (isAdminCreatedCandidate && savedUser.getConnectConsentToken() != null) {
                 // Admin-created CANDIDATE: Use invitation email with Connect consent link
                 try {
-                    emailService.sendAdminCreatedUserInvitation(savedUser, savedUser.getEmailVerificationToken(), savedUser.getConnectConsentToken());
+                    emailService.sendAdminCreatedUserInvitation(savedUser, savedUser.getEmailVerificationToken(), savedUser.getConnectConsentToken(), requestOrigin);
                     logger.info("Sent admin-created user invitation email to: {}", savedUser.getEmail());
                 } catch (Exception e) {
                     logger.error("Failed to send invitation email to " + savedUser.getEmail(), e);
@@ -114,7 +120,7 @@ public class UserServiceImpl implements UserService {
                 // Admin-created non-CANDIDATE roles: Use regular verification email
                 // (This should rarely happen, but covers cases like admin creating INTERVIEWER, etc.)
                 try {
-                    emailService.sendNewUserVerificationEmail(savedUser, savedUser.getEmailVerificationToken());
+                    emailService.sendNewUserVerificationEmail(savedUser, savedUser.getEmailVerificationToken(), requestOrigin);
                     logger.info("Sent verification email to admin-created user: {}", savedUser.getEmail());
                 } catch (Exception e) {
                     logger.error("Failed to send verification email to " + savedUser.getEmail(), e);

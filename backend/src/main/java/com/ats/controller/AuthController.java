@@ -21,6 +21,7 @@ import com.ats.service.EmailService;
 import com.ats.service.PasswordResetService;
 import com.ats.service.UserService;
 import com.ats.util.TokenUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -92,7 +93,7 @@ public class AuthController {
             )
         )
     })
-    public ResponseEntity<?> signup(@Valid @RequestBody AuthRequest authRequest) {
+    public ResponseEntity<?> signup(@Valid @RequestBody AuthRequest authRequest, HttpServletRequest httpRequest) {
         if (userRepository.existsByEmail(authRequest.getEmail())) {
             throw new ResourceAlreadyExistsException("Email is already in use");
         }
@@ -121,7 +122,8 @@ public class AuthController {
         user = userRepository.save(user);
 
         try {
-            emailService.sendNewUserVerificationEmail(user, verificationToken);
+            String requestOrigin = extractOriginFromRequest(httpRequest);
+            emailService.sendNewUserVerificationEmail(user, verificationToken, requestOrigin);
             return ResponseEntity.ok(new HashMap<String, String>() {{
                 put("message", "Registration successful. Please check your email for verification.");
             }});
@@ -749,13 +751,53 @@ public class AuthController {
             )
         )
     })
-    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        passwordResetService.processForgotPasswordRequest(request);
-        
+    public ResponseEntity<?> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest httpRequest) {
+        // Extract the origin from the request to use in the password reset link
+        // This allows the reset link to use the same domain the user is accessing from
+        String requestOrigin = extractOriginFromRequest(httpRequest);
+
+        passwordResetService.processForgotPasswordRequest(request, requestOrigin);
+
         // Always return success to prevent email enumeration attacks
         return ResponseEntity.ok(Map.of(
             "message", "If the email exists in our system, a password reset link has been sent."
         ));
+    }
+
+    /**
+     * Extracts the origin (scheme + host + port) from the HTTP request
+     * @param request The HTTP servlet request
+     * @return The origin URL (e.g., "https://ats.ist.com")
+     */
+    private String extractOriginFromRequest(HttpServletRequest request) {
+        String scheme = request.getHeader("X-Forwarded-Proto");
+        if (scheme == null || scheme.isEmpty()) {
+            scheme = request.getScheme();
+        }
+
+        String host = request.getHeader("X-Forwarded-Host");
+        if (host == null || host.isEmpty()) {
+            host = request.getHeader("Host");
+        }
+        if (host == null || host.isEmpty()) {
+            host = request.getServerName();
+        }
+
+        // Build the origin URL
+        StringBuilder origin = new StringBuilder();
+        origin.append(scheme).append("://").append(host);
+
+        // Only add port if it's not the default for the scheme
+        int port = request.getServerPort();
+        if ((scheme.equals("https") && port != 443) || (scheme.equals("http") && port != 80)) {
+            if (!host.contains(":")) {  // Only add if not already in Host header
+                origin.append(":").append(port);
+            }
+        }
+
+        return origin.toString();
     }
     
     @PostMapping("/reset-password")

@@ -207,43 +207,79 @@ public class EmailServiceImpl implements EmailService {
     @Override
     @Transactional
     public EmailNotification sendVerificationEmail(String to, String token) throws MessagingException {
+        return sendVerificationEmail(to, token, null);
+    }
+
+    @Override
+    @Transactional
+    public EmailNotification sendVerificationEmail(String to, String token, String requestOrigin) throws MessagingException {
+        // Use requestOrigin if provided, otherwise fall back to configured frontendUrl
+        String baseUrl = (requestOrigin != null && !requestOrigin.isEmpty()) ? requestOrigin : frontendUrl;
+
         Map<String, Object> templateVars = Map.of(
-            "verificationLink", frontendUrl + "/verify-email?token=" + token
+            "verificationLink", baseUrl + "/verify-email?token=" + token
         );
-        
+
         return sendTemplateEmail(to, "Verify your email address", "verification-email", templateVars, null);
     }
     
     @Override
     @Transactional
     public EmailNotification sendPasswordResetEmail(String to, String token, User user) throws MessagingException {
+        return sendPasswordResetEmail(to, token, user, null);
+    }
+
+    @Override
+    @Transactional
+    public EmailNotification sendPasswordResetEmail(String to, String token, User user, String requestOrigin) throws MessagingException {
+        // Use requestOrigin if provided, otherwise fall back to configured frontendUrl
+        String baseUrl = (requestOrigin != null && !requestOrigin.isEmpty()) ? requestOrigin : frontendUrl;
+
         Map<String, Object> templateVars = Map.of(
-            "resetLink", frontendUrl + "/reset-password?token=" + token
+            "resetLink", baseUrl + "/reset-password?token=" + token
         );
-        
+
         return sendTemplateEmail(to, "Reset Your Password", "password-reset-email", templateVars, user);
     }
     
     @Override
     @Transactional
     public EmailNotification sendNewUserVerificationEmail(User user, String token) throws MessagingException {
+        return sendNewUserVerificationEmail(user, token, null);
+    }
+
+    @Override
+    @Transactional
+    public EmailNotification sendNewUserVerificationEmail(User user, String token, String requestOrigin) throws MessagingException {
+        // Use requestOrigin if provided, otherwise fall back to configured frontendUrl
+        String baseUrl = (requestOrigin != null && !requestOrigin.isEmpty()) ? requestOrigin : frontendUrl;
+
         Map<String, Object> templateVars = Map.of(
-            "verificationLink", frontendUrl + "/verify-email?token=" + token,
+            "verificationLink", baseUrl + "/verify-email?token=" + token,
             "userName", user.getFirstName()
         );
-        
+
         return sendTemplateEmail(user.getEmail(), "Verify your email address - IST", "new-user-email", templateVars, user);
     }
 
     @Override
     @Transactional
     public EmailNotification sendAdminCreatedUserInvitation(User user, String verificationToken, String connectConsentToken) throws MessagingException {
+        return sendAdminCreatedUserInvitation(user, verificationToken, connectConsentToken, null);
+    }
+
+    @Override
+    @Transactional
+    public EmailNotification sendAdminCreatedUserInvitation(User user, String verificationToken, String connectConsentToken, String requestOrigin) throws MessagingException {
+        // Use requestOrigin if provided, otherwise fall back to configured frontendUrl
+        String baseUrl = (requestOrigin != null && !requestOrigin.isEmpty()) ? requestOrigin : frontendUrl;
+
         Map<String, Object> templateVars = new HashMap<>();
         // Single link with both tokens - user will accept consent first, then verify email
-        templateVars.put("setupLink", frontendUrl + "/accept-connect-consent?token=" + connectConsentToken + "&verificationToken=" + verificationToken);
+        templateVars.put("setupLink", baseUrl + "/accept-connect-consent?token=" + connectConsentToken + "&verificationToken=" + verificationToken);
         templateVars.put("userName", user.getFirstName());
-        templateVars.put("privacyPolicyUrl", frontendUrl + "/privacy-policy");
-        
+        templateVars.put("privacyPolicyUrl", baseUrl + "/privacy-policy");
+
         return sendTemplateEmail(user.getEmail(), "Welcome to IST - Complete Your Account Setup", "admin-created-user-invitation", templateVars, user);
     }
 

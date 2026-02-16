@@ -26,7 +26,19 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * Service interface for handling email operations
+ * Service interface for handling email operations.
+ *
+ * <h2>Multi-Domain Support</h2>
+ * <p>
+ * Many email methods have overloaded versions that accept a {@code requestOrigin} parameter.
+ * This supports deployments where the application is accessible from multiple domains
+ * (e.g., ats.ist.com and ats.ist.africa). The requestOrigin ensures that email links
+ * (verification, password reset, etc.) use the same domain the user is currently on,
+ * rather than a hardcoded domain from environment variables.
+ * </p>
+ * <p>
+ * If {@code requestOrigin} is null, the methods fall back to the configured frontend URL.
+ * </p>
  */
 public interface EmailService {
     
@@ -38,6 +50,19 @@ public interface EmailService {
      * @throws MessagingException If there's an error sending the email
      */
     EmailNotification sendVerificationEmail(String to, String token) throws MessagingException;
+
+    /**
+     * Sends a verification email using the requesting domain (for multi-domain support).
+     *
+     * @param to The recipient email address
+     * @param token The verification token
+     * @param requestOrigin The origin domain from the HTTP request (e.g., "https://ats.ist.com").
+     *                      Used to generate verification links with the same domain the user is on.
+     *                      If null, falls back to configured frontend URL.
+     * @return The created EmailNotification entity
+     * @throws MessagingException If there's an error sending the email
+     */
+    EmailNotification sendVerificationEmail(String to, String token, String requestOrigin) throws MessagingException;
     
     /**
      * Sends a password reset email with a token
@@ -47,6 +72,19 @@ public interface EmailService {
      * @return The created EmailNotification entity
      */
     EmailNotification sendPasswordResetEmail(String to, String token, User user) throws MessagingException;
+
+    /**
+     * Sends a password reset email with a token using the requesting domain (for multi-domain support).
+     *
+     * @param to The recipient email address
+     * @param token The password reset token
+     * @param user The user to send the email to
+     * @param requestOrigin The origin domain from the HTTP request (e.g., "https://ats.ist.com").
+     *                      Used to generate reset links with the same domain the user is on.
+     *                      If null, falls back to configured frontend URL.
+     * @return The created EmailNotification entity
+     */
+    EmailNotification sendPasswordResetEmail(String to, String token, User user, String requestOrigin) throws MessagingException;
     
     /**
      * Sends a verification email to a new user created by an admin
@@ -55,6 +93,18 @@ public interface EmailService {
      * @return The created EmailNotification entity
      */
     EmailNotification sendNewUserVerificationEmail(User user, String token) throws MessagingException;
+
+    /**
+     * Sends a verification email to a new user using the requesting domain (for multi-domain support).
+     *
+     * @param user The user to send the email to
+     * @param token The verification token
+     * @param requestOrigin The origin domain from the HTTP request (e.g., "https://ats.ist.com").
+     *                      Used to generate verification links with the same domain used for signup.
+     *                      If null, falls back to configured frontend URL.
+     * @return The created EmailNotification entity
+     */
+    EmailNotification sendNewUserVerificationEmail(User user, String token, String requestOrigin) throws MessagingException;
     
     /**
      * Sends an invitation email to admin-created users with Connect consent link
@@ -65,6 +115,20 @@ public interface EmailService {
      * @throws MessagingException If there's an error sending the email
      */
     EmailNotification sendAdminCreatedUserInvitation(User user, String verificationToken, String connectConsentToken) throws MessagingException;
+
+    /**
+     * Sends an invitation email to admin-created users using the requesting domain (for multi-domain support).
+     *
+     * @param user The user to send the email to
+     * @param verificationToken The email verification token
+     * @param connectConsentToken The Connect consent token
+     * @param requestOrigin The origin domain from the HTTP request (e.g., "https://ats.ist.com").
+     *                      Used to generate invitation/consent links with the same domain the admin is using.
+     *                      If null, falls back to configured frontend URL.
+     * @return The created EmailNotification entity
+     * @throws MessagingException If there's an error sending the email
+     */
+    EmailNotification sendAdminCreatedUserInvitation(User user, String verificationToken, String connectConsentToken, String requestOrigin) throws MessagingException;
 
     /**
      * Sends an email based on an existing EmailNotification record

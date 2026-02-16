@@ -65,8 +65,10 @@ public class UserController {
                 required = true,
                 schema = @Schema(implementation = UserDTO.class)
             )
-            @RequestBody UserDTO userDTO) {
-        return ResponseEntity.ok(userService.createUser(userDTO));
+            @RequestBody UserDTO userDTO,
+            HttpServletRequest httpRequest) {
+        String requestOrigin = extractOriginFromRequest(httpRequest);
+        return ResponseEntity.ok(userService.createUser(userDTO, requestOrigin));
     }
 
     @PutMapping("/{id}")
@@ -402,5 +404,45 @@ public class UserController {
             response.put("message", "Failed to assign region: " + e.getMessage());
             return ResponseEntity.ok(response);
         }
+    }
+
+    /**
+     * Extracts the origin (scheme + host + port) from the HTTP request.
+     * Checks X-Forwarded-Proto and X-Forwarded-Host headers first (for reverse proxy scenarios),
+     * then falls back to the direct request values.
+     *
+     * @param request The HTTP servlet request
+     * @return The origin URL (e.g., "https://ats.ist.com")
+     */
+    private String extractOriginFromRequest(HttpServletRequest request) {
+        // Get scheme (http or https)
+        String scheme = request.getHeader("X-Forwarded-Proto");
+        if (scheme == null || scheme.isEmpty()) {
+            scheme = request.getScheme();
+        }
+
+        // Get host
+        String host = request.getHeader("X-Forwarded-Host");
+        if (host == null || host.isEmpty()) {
+            host = request.getHeader("Host");
+        }
+        if (host == null || host.isEmpty()) {
+            host = request.getServerName();
+        }
+
+        // Build origin URL
+        StringBuilder origin = new StringBuilder();
+        origin.append(scheme).append("://").append(host);
+
+        // Add port if non-standard
+        int port = request.getServerPort();
+        if ((scheme.equals("https") && port != 443) || (scheme.equals("http") && port != 80)) {
+            // Only add port if it's not already in the host header
+            if (!host.contains(":")) {
+                origin.append(":").append(port);
+            }
+        }
+
+        return origin.toString();
     }
 } 
