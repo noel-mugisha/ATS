@@ -421,7 +421,7 @@ public class UserController {
             scheme = request.getScheme();
         }
 
-        // Get host
+        // Get host (may include port)
         String host = request.getHeader("X-Forwarded-Host");
         if (host == null || host.isEmpty()) {
             host = request.getHeader("Host");
@@ -434,11 +434,16 @@ public class UserController {
         StringBuilder origin = new StringBuilder();
         origin.append(scheme).append("://").append(host);
 
-        // Add port if non-standard
-        int port = request.getServerPort();
-        if ((scheme.equals("https") && port != 443) || (scheme.equals("http") && port != 80)) {
-            // Only add port if it's not already in the host header
-            if (!host.contains(":")) {
+        // Only add port if:
+        // 1. Host doesn't already contain a port
+        // 2. We're NOT behind a reverse proxy (no X-Forwarded headers)
+        // 3. Port is non-standard for the scheme
+        boolean hasForwardedHeaders = request.getHeader("X-Forwarded-Proto") != null ||
+                                      request.getHeader("X-Forwarded-Host") != null;
+
+        if (!host.contains(":") && !hasForwardedHeaders) {
+            int port = request.getServerPort();
+            if ((scheme.equals("https") && port != 443) || (scheme.equals("http") && port != 80)) {
                 origin.append(":").append(port);
             }
         }

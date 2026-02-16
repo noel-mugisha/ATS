@@ -772,11 +772,13 @@ public class AuthController {
      * @return The origin URL (e.g., "https://ats.ist.com")
      */
     private String extractOriginFromRequest(HttpServletRequest request) {
+        // Get scheme (http or https)
         String scheme = request.getHeader("X-Forwarded-Proto");
         if (scheme == null || scheme.isEmpty()) {
             scheme = request.getScheme();
         }
 
+        // Get host (may include port)
         String host = request.getHeader("X-Forwarded-Host");
         if (host == null || host.isEmpty()) {
             host = request.getHeader("Host");
@@ -789,10 +791,16 @@ public class AuthController {
         StringBuilder origin = new StringBuilder();
         origin.append(scheme).append("://").append(host);
 
-        // Only add port if it's not the default for the scheme
-        int port = request.getServerPort();
-        if ((scheme.equals("https") && port != 443) || (scheme.equals("http") && port != 80)) {
-            if (!host.contains(":")) {  // Only add if not already in Host header
+        // Only add port if:
+        // 1. Host doesn't already contain a port
+        // 2. We're NOT behind a reverse proxy (no X-Forwarded headers)
+        // 3. Port is non-standard for the scheme
+        boolean hasForwardedHeaders = request.getHeader("X-Forwarded-Proto") != null ||
+                                      request.getHeader("X-Forwarded-Host") != null;
+
+        if (!host.contains(":") && !hasForwardedHeaders) {
+            int port = request.getServerPort();
+            if ((scheme.equals("https") && port != 443) || (scheme.equals("http") && port != 80)) {
                 origin.append(":").append(port);
             }
         }
