@@ -138,7 +138,7 @@ services:
         REACT_APP_API_URL: ${REACT_APP_API_URL}
     container_name: ats-frontend-career-aws
     ports:
-      - "3002:80"
+      - "80"
     env_file:
       - .env
     environment:
